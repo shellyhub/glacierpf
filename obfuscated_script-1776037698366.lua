@@ -526,12 +526,14 @@ end
 -- ============================================================
 local function launchClient()
     local chamsEnabled = false
+    local crosshairEnabled = false
     local guiVisible = true
     local listeningForKeybind = false
     local highlightStorage = {}
 
     local pfPlayersFolder = Workspace:WaitForChild("Players")
 
+    -- ── Chams Logic ──────────────────────────────────────────
     local function getAllCharacters()
         local characters = {}
         for _, folder in ipairs(pfPlayersFolder:GetChildren()) do
@@ -611,9 +613,129 @@ local function launchClient()
         end
     end)
 
-    -- Array HUD
+    -- ── Crosshair ─────────────────────────────────────────────
+    local crosshairGui = Instance.new("Frame")
+    crosshairGui.Size = UDim2.new(1, 0, 1, 0)
+    crosshairGui.BackgroundTransparency = 1
+    crosshairGui.BorderSizePixel = 0
+    crosshairGui.Visible = false
+    crosshairGui.ZIndex = 10
+    crosshairGui.Parent = screenGui
+
+    local CX_LEN = 10   -- line length
+    local CX_GAP = 4    -- gap from center
+    local CX_T   = 2    -- thickness
+    local CX_COL = Color3.fromRGB(0, 220, 255)
+
+    local function makeLine(w, h, ox, oy)
+        local f = Instance.new("Frame")
+        f.Size = UDim2.new(0, w, 0, h)
+        f.Position = UDim2.new(0.5, ox, 0.5, oy)
+        f.BackgroundColor3 = CX_COL
+        f.BackgroundTransparency = 0.1
+        f.BorderSizePixel = 0
+        f.ZIndex = 11
+        f.Parent = crosshairGui
+        return f
+    end
+
+    -- top, bottom, left, right lines
+    local cxTop    = makeLine(CX_T,   CX_LEN, -CX_T/2, -(CX_GAP + CX_LEN))
+    local cxBottom = makeLine(CX_T,   CX_LEN, -CX_T/2,   CX_GAP)
+    local cxLeft   = makeLine(CX_LEN, CX_T,   -(CX_GAP + CX_LEN), -CX_T/2)
+    local cxRight  = makeLine(CX_LEN, CX_T,    CX_GAP,             -CX_T/2)
+
+    -- center dot
+    local cxDot = Instance.new("Frame")
+    cxDot.Size = UDim2.new(0, CX_T, 0, CX_T)
+    cxDot.Position = UDim2.new(0.5, -CX_T/2, 0.5, -CX_T/2)
+    cxDot.BackgroundColor3 = CX_COL
+    cxDot.BackgroundTransparency = 0.1
+    cxDot.BorderSizePixel = 0
+    cxDot.ZIndex = 11
+    cxDot.Parent = crosshairGui
+
+    local function setCrosshair(enabled)
+        crosshairEnabled = enabled
+        crosshairGui.Visible = enabled
+    end
+
+    -- ── Notification system ───────────────────────────────────
+    local notifFrame = Instance.new("Frame")
+    notifFrame.Size = UDim2.new(0, 200, 0, 300)
+    notifFrame.Position = UDim2.new(1, -210, 1, -10)
+    notifFrame.BackgroundTransparency = 1
+    notifFrame.AnchorPoint = Vector2.new(0, 1)
+    notifFrame.Parent = screenGui
+
+    local notifList = Instance.new("UIListLayout")
+    notifList.HorizontalAlignment = Enum.HorizontalAlignment.Right
+    notifList.VerticalAlignment = Enum.VerticalAlignment.Bottom
+    notifList.SortOrder = Enum.SortOrder.LayoutOrder
+    notifList.Padding = UDim.new(0, 4)
+    notifList.Parent = notifFrame
+
+    local notifCount = 0
+    local function notify(title, body)
+        notifCount += 1
+        local n = Instance.new("Frame")
+        n.Size = UDim2.new(1, 0, 0, 48)
+        n.BackgroundColor3 = Color3.fromRGB(4, 10, 22)
+        n.BackgroundTransparency = 0.05
+        n.BorderSizePixel = 0
+        n.LayoutOrder = notifCount
+        n.ClipsDescendants = true
+        n.Parent = notifFrame
+        Instance.new("UICorner", n).CornerRadius = UDim.new(0, 4)
+        local ns = Instance.new("UIStroke", n)
+        ns.Color = Color3.fromRGB(0, 160, 220)
+        ns.Thickness = 1
+
+        -- left accent bar
+        local bar = Instance.new("Frame")
+        bar.Size = UDim2.new(0, 2, 1, 0)
+        bar.BackgroundColor3 = Color3.fromRGB(0, 200, 255)
+        bar.BorderSizePixel = 0
+        bar.Parent = n
+
+        local nt = Instance.new("TextLabel")
+        nt.Size = UDim2.new(1, -12, 0, 18)
+        nt.Position = UDim2.new(0, 8, 0, 5)
+        nt.BackgroundTransparency = 1
+        nt.Text = title
+        nt.TextColor3 = Color3.fromRGB(100, 200, 255)
+        nt.TextSize = 12
+        nt.Font = Enum.Font.GothamBold
+        nt.TextXAlignment = Enum.TextXAlignment.Left
+        nt.Parent = n
+
+        local nb = Instance.new("TextLabel")
+        nb.Size = UDim2.new(1, -12, 0, 16)
+        nb.Position = UDim2.new(0, 8, 0, 24)
+        nb.BackgroundTransparency = 1
+        nb.Text = body
+        nb.TextColor3 = Color3.fromRGB(80, 160, 200)
+        nb.TextSize = 11
+        nb.Font = Enum.Font.Gotham
+        nb.TextXAlignment = Enum.TextXAlignment.Left
+        nb.Parent = n
+
+        -- slide in
+        n.Position = UDim2.new(1, 10, 0, 0)
+        n:TweenPosition(UDim2.new(0, 0, 0, 0), "Out", "Quad", 0.2, true)
+
+        task.delay(3, function()
+            if n and n.Parent then
+                n:TweenPosition(UDim2.new(1, 10, 0, 0), "Out", "Quad", 0.2, true)
+                task.wait(0.25)
+                if n and n.Parent then n:Destroy() end
+            end
+        end)
+    end
+
+    -- ── Array HUD ─────────────────────────────────────────────
     local arrayFrame = Instance.new("Frame")
-    arrayFrame.Size = UDim2.new(0, 160, 0, 40)
+    arrayFrame.Size = UDim2.new(0, 160, 0, 80)
     arrayFrame.Position = UDim2.new(1, -170, 0, 10)
     arrayFrame.BackgroundTransparency = 1
     arrayFrame.Parent = screenGui
@@ -628,26 +750,32 @@ local function launchClient()
     local statsLabel = Instance.new("TextLabel")
     statsLabel.Size = UDim2.new(1, 0, 0, 18)
     statsLabel.BackgroundTransparency = 1
-    statsLabel.TextColor3 = Color3.fromRGB(180, 220, 255)
-    statsLabel.TextSize = 12
+    statsLabel.TextColor3 = Color3.fromRGB(0, 160, 220)
+    statsLabel.TextSize = 11
     statsLabel.Font = Enum.Font.GothamBold
     statsLabel.TextXAlignment = Enum.TextXAlignment.Right
-    statsLabel.TextStrokeTransparency = 0.3
+    statsLabel.TextStrokeTransparency = 0.4
     statsLabel.LayoutOrder = 0
     statsLabel.Parent = arrayFrame
 
-    local chamsArrayLabel = Instance.new("TextLabel")
-    chamsArrayLabel.Size = UDim2.new(1, 0, 0, 18)
-    chamsArrayLabel.BackgroundTransparency = 1
-    chamsArrayLabel.TextColor3 = Color3.fromRGB(100, 190, 240)
-    chamsArrayLabel.TextSize = 12
-    chamsArrayLabel.Font = Enum.Font.Gotham
-    chamsArrayLabel.TextXAlignment = Enum.TextXAlignment.Right
-    chamsArrayLabel.TextStrokeTransparency = 0.3
-    chamsArrayLabel.Text = "Enemy Chams"
-    chamsArrayLabel.Visible = false
-    chamsArrayLabel.LayoutOrder = 1
-    chamsArrayLabel.Parent = arrayFrame
+    local function makeArrayLabel(text, order)
+        local lbl = Instance.new("TextLabel")
+        lbl.Size = UDim2.new(1, 0, 0, 16)
+        lbl.BackgroundTransparency = 1
+        lbl.TextColor3 = Color3.fromRGB(100, 200, 255)
+        lbl.TextSize = 11
+        lbl.Font = Enum.Font.GothamBold
+        lbl.TextXAlignment = Enum.TextXAlignment.Right
+        lbl.TextStrokeTransparency = 0.4
+        lbl.Text = text
+        lbl.Visible = false
+        lbl.LayoutOrder = order
+        lbl.Parent = arrayFrame
+        return lbl
+    end
+
+    local chamsArrayLabel     = makeArrayLabel("Enemy Chams", 1)
+    local crosshairArrayLabel = makeArrayLabel("Crosshair", 2)
 
     local lastFpsTime = tick()
     local fpsCount = 0
@@ -660,13 +788,80 @@ local function launchClient()
             lastFpsTime = tick()
         end
         local ping = math.floor(localPlayer:GetNetworkPing() * 1000)
-        statsLabel.Text = displayFps .. " FPS | " .. #Players:GetPlayers() .. " | " .. ping .. "ms"
+        statsLabel.Text = displayFps .. " FPS  " .. #Players:GetPlayers() .. " PLR  " .. ping .. "ms"
     end)
 
-    -- Main Window
+    -- ── Helper: make a toggle row ─────────────────────────────
+    local function makeToggle(parent, text, yPos, onToggle)
+        local row = Instance.new("Frame")
+        row.Size = UDim2.new(1, -20, 0, 32)
+        row.Position = UDim2.new(0, 10, 0, yPos)
+        row.BackgroundTransparency = 1
+        row.Parent = parent
+
+        local lbl = Instance.new("TextLabel")
+        lbl.Size = UDim2.new(1, -50, 1, 0)
+        lbl.BackgroundTransparency = 1
+        lbl.Text = text
+        lbl.TextColor3 = Color3.fromRGB(160, 210, 240)
+        lbl.TextSize = 12
+        lbl.Font = Enum.Font.GothamBold
+        lbl.TextXAlignment = Enum.TextXAlignment.Left
+        lbl.Parent = row
+
+        local bg = Instance.new("Frame")
+        bg.Size = UDim2.new(0, 38, 0, 20)
+        bg.Position = UDim2.new(1, -42, 0.5, -10)
+        bg.BackgroundColor3 = Color3.fromRGB(5, 20, 40)
+        bg.BorderSizePixel = 0
+        bg.Parent = row
+        Instance.new("UICorner", bg).CornerRadius = UDim.new(1, 0)
+        local bgStroke = Instance.new("UIStroke", bg)
+        bgStroke.Color = Color3.fromRGB(0, 80, 130)
+        bgStroke.Thickness = 1
+
+        local knob = Instance.new("Frame")
+        knob.Size = UDim2.new(0, 14, 0, 14)
+        knob.Position = UDim2.new(0, 3, 0.5, -7)
+        knob.BackgroundColor3 = Color3.fromRGB(0, 100, 160)
+        knob.BorderSizePixel = 0
+        knob.Parent = bg
+        Instance.new("UICorner", knob).CornerRadius = UDim.new(1, 0)
+
+        local btn = Instance.new("TextButton")
+        btn.Size = UDim2.new(1, 0, 1, 0)
+        btn.BackgroundTransparency = 1
+        btn.Text = ""
+        btn.Parent = bg
+
+        local toggled = false
+        local function setToggle(val)
+            toggled = val
+            if val then
+                bg.BackgroundColor3 = Color3.fromRGB(0, 45, 90)
+                bgStroke.Color = Color3.fromRGB(0, 160, 220)
+                knob.BackgroundColor3 = Color3.fromRGB(0, 180, 255)
+                knob:TweenPosition(UDim2.new(0, 21, 0.5, -7), "Out", "Quad", 0.15, true)
+            else
+                bg.BackgroundColor3 = Color3.fromRGB(5, 20, 40)
+                bgStroke.Color = Color3.fromRGB(0, 80, 130)
+                knob.BackgroundColor3 = Color3.fromRGB(0, 100, 160)
+                knob:TweenPosition(UDim2.new(0, 3, 0.5, -7), "Out", "Quad", 0.15, true)
+            end
+            onToggle(val)
+        end
+
+        btn.MouseButton1Click:Connect(function()
+            setToggle(not toggled)
+        end)
+
+        return setToggle
+    end
+
+    -- ── Main Window ────────────────────────────────────────────
     local window = Instance.new("Frame")
-    window.Size = UDim2.new(0, 230, 0, 185)
-    window.Position = UDim2.new(0, 20, 0.5, -92)
+    window.Size = UDim2.new(0, 230, 0, 230)
+    window.Position = UDim2.new(0, 20, 0.5, -115)
     window.BackgroundColor3 = Color3.fromRGB(4, 10, 22)
     window.BorderSizePixel = 0
     window.Active = true
@@ -678,7 +873,6 @@ local function launchClient()
     wStroke.Color = Color3.fromRGB(0, 160, 220)
     wStroke.Thickness = 1
 
-    -- Corner brackets on main window
     local function winCorner(px, py, ox, oy, flipH, flipV)
         local h = Instance.new("Frame")
         h.Size = UDim2.new(0, 12, 0, 2)
@@ -702,6 +896,7 @@ local function launchClient()
     winCorner(0, 1, 3, -3, false, true)
     winCorner(1, 1, -3, -3, true, true)
 
+    -- Title bar
     local titleBar = Instance.new("Frame")
     titleBar.Size = UDim2.new(1, 0, 0, 36)
     titleBar.BackgroundColor3 = Color3.fromRGB(0, 15, 35)
@@ -740,108 +935,63 @@ local function launchClient()
     keybindHint.Position = UDim2.new(1, -85, 0, 0)
     keybindHint.BackgroundTransparency = 1
     keybindHint.Text = "[RShift]"
-    keybindHint.TextColor3 = Color3.fromRGB(0, 120, 180)
+    keybindHint.TextColor3 = Color3.fromRGB(0, 100, 160)
     keybindHint.TextSize = 10
     keybindHint.Font = Enum.Font.GothamBold
     keybindHint.TextXAlignment = Enum.TextXAlignment.Right
     keybindHint.Parent = titleBar
 
-    -- VISUALS section
-    local sectionLabel = Instance.new("TextLabel")
-    sectionLabel.Size = UDim2.new(1, -20, 0, 20)
-    sectionLabel.Position = UDim2.new(0, 10, 0, 42)
-    sectionLabel.BackgroundTransparency = 1
-    sectionLabel.Text = "// VISUALS"
-    sectionLabel.TextColor3 = Color3.fromRGB(0, 140, 200)
-    sectionLabel.TextSize = 10
-    sectionLabel.Font = Enum.Font.GothamBold
-    sectionLabel.TextXAlignment = Enum.TextXAlignment.Left
-    sectionLabel.Parent = window
-
-    local row = Instance.new("Frame")
-    row.Size = UDim2.new(1, -20, 0, 36)
-    row.Position = UDim2.new(0, 10, 0, 60)
-    row.BackgroundTransparency = 1
-    row.Parent = window
-
-    local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(1, -50, 1, 0)
-    label.BackgroundTransparency = 1
-    label.Text = "Enemy Chams"
-    label.TextColor3 = Color3.fromRGB(160, 210, 240)
-    label.TextSize = 13
-    label.Font = Enum.Font.GothamBold
-    label.TextXAlignment = Enum.TextXAlignment.Left
-    label.Parent = row
-
-    local toggleBg = Instance.new("Frame")
-    toggleBg.Size = UDim2.new(0, 40, 0, 22)
-    toggleBg.Position = UDim2.new(1, -44, 0.5, -11)
-    toggleBg.BackgroundColor3 = Color3.fromRGB(5, 20, 40)
-    toggleBg.BorderSizePixel = 0
-    toggleBg.Parent = row
-    Instance.new("UICorner", toggleBg).CornerRadius = UDim.new(1, 0)
-    local toggleStroke = Instance.new("UIStroke", toggleBg)
-    toggleStroke.Color = Color3.fromRGB(0, 80, 130)
-    toggleStroke.Thickness = 1
-
-    local knob = Instance.new("Frame")
-    knob.Size = UDim2.new(0, 16, 0, 16)
-    knob.Position = UDim2.new(0, 3, 0.5, -8)
-    knob.BackgroundColor3 = Color3.fromRGB(0, 120, 180)
-    knob.BorderSizePixel = 0
-    knob.Parent = toggleBg
-    Instance.new("UICorner", knob).CornerRadius = UDim.new(1, 0)
-
-    local toggleBtn = Instance.new("TextButton")
-    toggleBtn.Size = UDim2.new(1, 0, 1, 0)
-    toggleBtn.BackgroundTransparency = 1
-    toggleBtn.Text = ""
-    toggleBtn.Parent = toggleBg
-
-    local function toggleChams()
-        chamsEnabled = not chamsEnabled
-        chamsArrayLabel.Visible = chamsEnabled
-        updateChams()
-        if chamsEnabled then
-            toggleBg.BackgroundColor3 = Color3.fromRGB(0, 50, 100)
-            toggleStroke.Color = Color3.fromRGB(0, 160, 220)
-            knob.BackgroundColor3 = Color3.fromRGB(0, 180, 255)
-            knob:TweenPosition(UDim2.new(0, 21, 0.5, -8), "Out", "Quad", 0.15, true)
-        else
-            toggleBg.BackgroundColor3 = Color3.fromRGB(5, 20, 40)
-            toggleStroke.Color = Color3.fromRGB(0, 80, 130)
-            knob.BackgroundColor3 = Color3.fromRGB(0, 120, 180)
-            knob:TweenPosition(UDim2.new(0, 3, 0.5, -8), "Out", "Quad", 0.15, true)
-        end
+    -- Section helper
+    local function makeSection(parent, text, yPos)
+        local lbl = Instance.new("TextLabel")
+        lbl.Size = UDim2.new(1, -20, 0, 18)
+        lbl.Position = UDim2.new(0, 10, 0, yPos)
+        lbl.BackgroundTransparency = 1
+        lbl.Text = "// " .. text
+        lbl.TextColor3 = Color3.fromRGB(0, 120, 180)
+        lbl.TextSize = 10
+        lbl.Font = Enum.Font.GothamBold
+        lbl.TextXAlignment = Enum.TextXAlignment.Left
+        lbl.Parent = parent
+        -- thin underline
+        local line = Instance.new("Frame")
+        line.Size = UDim2.new(1, -20, 0, 1)
+        line.Position = UDim2.new(0, 10, 0, yPos + 18)
+        line.BackgroundColor3 = Color3.fromRGB(0, 80, 130)
+        line.BackgroundTransparency = 0.5
+        line.BorderSizePixel = 0
+        line.Parent = parent
     end
 
-    toggleBtn.MouseButton1Click:Connect(toggleChams)
+    makeSection(window, "VISUALS", 42)
+
+    local toggleChams = makeToggle(window, "Enemy Chams", 64, function(val)
+        chamsEnabled = val
+        chamsArrayLabel.Visible = val
+        updateChams()
+        notify("Enemy Chams", val and "Enabled" or "Disabled")
+    end)
+
+    makeToggle(window, "Crosshair", 100, function(val)
+        setCrosshair(val)
+        crosshairArrayLabel.Visible = val
+        notify("Crosshair", val and "Enabled" or "Disabled")
+    end)
 
     -- Divider
     local divider = Instance.new("Frame")
     divider.Size = UDim2.new(1, -20, 0, 1)
-    divider.Position = UDim2.new(0, 10, 0, 106)
+    divider.Position = UDim2.new(0, 10, 0, 143)
     divider.BackgroundColor3 = Color3.fromRGB(0, 80, 130)
-    divider.BackgroundTransparency = 0.4
+    divider.BackgroundTransparency = 0.5
     divider.BorderSizePixel = 0
     divider.Parent = window
 
-    -- KEYBINDS section
-    local keybindSection = Instance.new("TextLabel")
-    keybindSection.Size = UDim2.new(1, -20, 0, 20)
-    keybindSection.Position = UDim2.new(0, 10, 0, 110)
-    keybindSection.BackgroundTransparency = 1
-    keybindSection.Text = "// KEYBINDS"
-    keybindSection.TextColor3 = Color3.fromRGB(0, 140, 200)
-    keybindSection.TextSize = 10
-    keybindSection.Font = Enum.Font.GothamBold
-    keybindSection.TextXAlignment = Enum.TextXAlignment.Left
-    keybindSection.Parent = window
+    makeSection(window, "KEYBINDS", 148)
 
     local keybindRow = Instance.new("Frame")
-    keybindRow.Size = UDim2.new(1, -20, 0, 30)
-    keybindRow.Position = UDim2.new(0, 10, 0, 132)
+    keybindRow.Size = UDim2.new(1, -20, 0, 28)
+    keybindRow.Position = UDim2.new(0, 10, 0, 170)
     keybindRow.BackgroundTransparency = 1
     keybindRow.Parent = window
 
@@ -856,8 +1006,8 @@ local function launchClient()
     keybindRowLabel.Parent = keybindRow
 
     local keybindBtn = Instance.new("TextButton")
-    keybindBtn.Size = UDim2.new(0, 70, 1, 0)
-    keybindBtn.Position = UDim2.new(1, -70, 0, 0)
+    keybindBtn.Size = UDim2.new(0, 68, 0, 24)
+    keybindBtn.Position = UDim2.new(1, -70, 0.5, -12)
     keybindBtn.BackgroundColor3 = Color3.fromRGB(0, 25, 55)
     keybindBtn.BorderSizePixel = 0
     keybindBtn.Text = chamsKeybind.Name
@@ -866,9 +1016,9 @@ local function launchClient()
     keybindBtn.Font = Enum.Font.GothamBold
     keybindBtn.Parent = keybindRow
     Instance.new("UICorner", keybindBtn).CornerRadius = UDim.new(0, 4)
-    local keybindBtnStroke = Instance.new("UIStroke", keybindBtn)
-    keybindBtnStroke.Color = Color3.fromRGB(0, 120, 200)
-    keybindBtnStroke.Thickness = 1
+    local kbStroke = Instance.new("UIStroke", keybindBtn)
+    kbStroke.Color = Color3.fromRGB(0, 120, 200)
+    kbStroke.Thickness = 1
 
     keybindBtn.MouseButton1Click:Connect(function()
         if listeningForKeybind then return end
@@ -885,9 +1035,22 @@ local function launchClient()
                 keybindBtn.TextColor3 = Color3.fromRGB(100, 200, 255)
                 listeningForKeybind = false
                 conn:Disconnect()
+                notify("Keybind", "Set to " .. input.KeyCode.Name)
             end
         end)
     end)
+
+    -- Version tag at bottom
+    local versionLabel = Instance.new("TextLabel")
+    versionLabel.Size = UDim2.new(1, -20, 0, 16)
+    versionLabel.Position = UDim2.new(0, 10, 1, -18)
+    versionLabel.BackgroundTransparency = 1
+    versionLabel.Text = "GLACIER v3.0  //  PHANTOM FORCES"
+    versionLabel.TextColor3 = Color3.fromRGB(0, 70, 110)
+    versionLabel.TextSize = 9
+    versionLabel.Font = Enum.Font.GothamBold
+    versionLabel.TextXAlignment = Enum.TextXAlignment.Center
+    versionLabel.Parent = window
 
     -- Global keybinds
     UserInputService.InputBegan:Connect(function(input, gameProcessed)
@@ -897,8 +1060,13 @@ local function launchClient()
             guiVisible = not guiVisible
             window.Visible = guiVisible
         elseif input.KeyCode == chamsKeybind then
-            toggleChams()
+            toggleChams(not chamsEnabled)
         end
+    end)
+
+    -- Welcome notification
+    task.delay(0.5, function()
+        notify("❄ Glacier Client", "Loaded successfully")
     end)
 end
 
